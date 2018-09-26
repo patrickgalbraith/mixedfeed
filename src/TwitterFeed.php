@@ -80,7 +80,7 @@ class TwitterFeed extends AbstractTwitterFeed
         $this->cacheKey = $this->getFeedPlatform() . $this->userId;
     }
 
-    protected function getFeed($count = 5)
+    protected function getFeed($count = 5, $queryCount = 200/*Twitter API Max per request*/)
     {
         $countKey = $this->cacheKey . $count;
 
@@ -89,12 +89,17 @@ class TwitterFeed extends AbstractTwitterFeed
                 $this->cacheProvider->contains($countKey)) {
                 return $this->cacheProvider->fetch($countKey);
             }
+            
             $body = $this->twitterConnection->get("statuses/user_timeline", [
                 "user_id" => $this->userId,
-                "count" => $count,
+                "count" => $queryCount, // get more to offset the exclude_replies and include_rts
                 "exclude_replies" => $this->excludeReplies,
                 'include_rts' => $this->includeRts,
             ]);
+
+            // trim the results after the culling from exclude_replies and include_rts
+            $body = array_slice($body, 0, $count);
+            
             if (null !== $this->cacheProvider) {
                 $this->cacheProvider->save(
                     $countKey,
